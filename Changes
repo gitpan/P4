@@ -1,4 +1,23 @@
 Revision history for Perl extension P4.
+1.4320 Wed Jun 09 2004
+
+	- Bug fix. Fix the test script so that it handles both tagged and
+	  non-tagged output for "p4 info". Tagged support for "p4 info" was
+	  added in 2003.2. Thanks to Jeremy Bopp.
+
+1.3550 Wed Aug 06 2003
+
+	- Add support for OutputBinary() to P4Perl classes. This allow
+	  "p4 print" to work with binary files, and text files on clients
+	  with non-native line endings.
+
+	- Re-add __END__ tag accidentally deleted in previous change
+
+1.3537 Tue Aug 05 2003
+
+	- Documentation change. Added docs for P4::SubmitSpec and
+	  P4::SetInput(). No functional change.
+
 1.2587 Fri Jan 10 2003
 	- Documentation change. Added docs for P4::Error and P4::ErrorCount.
 	  No functional change

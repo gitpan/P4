@@ -1,4 +1,4 @@
-# Copyright (c) 1997-2001, Perforce Software, Inc.  All rights reserved.
+# Copyright (c) 1997-2004, Perforce Software, Inc.  All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -100,6 +100,18 @@ sub OutputText
     push( @{ $self->{ 'Results' } }, $text );
 }
 
+#
+# Binary data just stored in the results buffer in the same way as
+# text - we do that because (a) you asked for it and (b) clients with
+# LineEnd's other than "local" will use OutputBinary() instead of
+# OutputText() when writing file content (e.g. "p4 print")
+#
+sub OutputBinary
+{
+    my ( $self, $data, $len ) = @_;
+    push( @{ $self->{ 'Results' } }, $data );
+}
+
 sub Prompt
 {
     my ( $self, $prompt ) = @_;
@@ -173,7 +185,7 @@ use AutoLoader;
 use strict;
 use vars qw( $VERSION $AUTOLOAD @ISA @EXPORT @EXPORT_OK );
 
-$VERSION = qq( 1.2587 );
+$VERSION = qq( 1.4320 );
 
 @ISA = qw( P4::Client );
 
@@ -536,11 +548,33 @@ the results. eg.
 
 =item P4::Save<cmd>()>
 
-Shorthand for running C<$p4-E<gt>Run( "cmd", "-i");>. e.g
+Shorthand for: 
+
+    $p4->SetInput( $spec ); 
+    $p4->Run( "cmd", "-i");
+    
+e.g.
 
     $p4->SaveLabel( $label );
     $p4->SaveChange( $changeno );
     $p4->SaveClient( $clientspec );
+
+=item P4::SetInput()
+
+Save the supplied argument, which should be a hashref or
+a scalar string, as input to be supplied to a subsequent
+"p4 XXXX -i".
+
+=item P4::SubmitSpec()>
+
+Submits a changelist using the supplied change specification.
+Really a shorthand for SetInput() and Run( "submit", "-i" ).
+
+For example:
+
+    $change = $p4->FetchChange();
+    $change->{ "Description" } = "some text...";
+    $p4->SubmitSpec( $change );
 
 =back
 
@@ -553,7 +587,7 @@ server release, but generally requires a 2000.1 or later server.
 
 =head1 LICENCE
 
-Copyright (c) 1997-2001, Perforce Software, Inc.  All rights reserved.
+Copyright (c) 1997-2004, Perforce Software, Inc.  All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:

@@ -23,10 +23,24 @@ print( defined( $p4 ) ? "ok 2\n" : "not ok 1\n" );
 
 $p4->ParseForms();
 print( $p4->Init() ? "ok 3\n" : "not ok 2\n" );
+
+# Since 2003.2, "p4 info" supports tagged output. So we have to handle both
+# tagged and non-tagged output in the test.
 my @info = $p4->Info();
-print( scalar( @info ) >= 10 ? "ok 4\n" : "not ok 4\n" );
-my $info = join( "\n", $p4->Info() );
-print( $info =~ /^User name/ ? "ok 5\n" : "not ok 5\n" );
+if( scalar( @info ) == 1 )
+{
+    # Tagged output. The result should be a hashref
+    my $i = $info[ 0 ];
+    print( ref( $i ) == "HASH" ? "ok 4\n" : "not ok 4\n" );
+    print( ( ref( $i ) && defined( $i->{ 'userName' } ) ) ? "ok 5\n" : "not ok 5\n" );
+}
+else
+{
+    # Non tagged output. 
+    print( scalar( @info ) >= 10 ? "ok 4\n" : "not ok 4\n" );
+    my $info = join( "\n", $p4->Info() );
+    print( $info =~ /^User name/ ? "ok 5\n" : "not ok 5\n" );
+}
 
 my $client = $p4->FetchClient();
 print( ref( $client ) ? "ok 6\n" : "not ok 6\n" );

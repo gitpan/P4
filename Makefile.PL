@@ -4,5 +4,8 @@ use ExtUtils::MakeMaker;
 WriteMakefile(
     'NAME'		=> 'P4',
     'VERSION_FROM'	=> 'P4.pm', # finds $VERSION
-    'PREREQ_PM'		=> {}, # e.g., Module::Name => 1.1
+    'PREREQ_PM'		=> { 'P4::Client'	=> "1.1084" }, 
+    'ABSTRACT'		=> "OO interface to the Perforce SCM system",
+    'AUTHOR'		=> "Tony Smith <tony\@perforce.com>",
+    
 );

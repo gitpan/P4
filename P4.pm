@@ -173,7 +173,7 @@ use AutoLoader;
 use strict;
 use vars qw( $VERSION $AUTOLOAD @ISA @EXPORT @EXPORT_OK );
 
-$VERSION = qq( 1.1733 );
+$VERSION = qq( 1.2587 );
 
 @ISA = qw( P4::Client );
 
@@ -346,6 +346,17 @@ Construct a new P4 object. e.g.
 
 Returns true if the TCP/IP connection between client and server has 
 been dropped.
+
+=item P4::ErrorCount()
+
+Returns the number of errors encountered during execution of the last
+command
+
+=item P4::Errors()
+
+Returns an array containing the error messages received during 
+execution of the last command.
+
 
 =item P4::Final()
 

@@ -1,4 +1,11 @@
 Revision history for Perl extension P4.
+1.2587 Fri Jan 10 2003
+	- Documentation change. Added docs for P4::Error and P4::ErrorCount.
+	  No functional change
+
+1.2003 Wed Aug 07 2002
+	- MakeMaker tweaks. No functional change.
+
 1.1733 Tue Apr 30 2002
 	- Documentation update and GA release.
 

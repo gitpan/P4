@@ -1,4 +1,4 @@
-<SOFTPKG NAME="P4" VERSION="1,1733">
+<SOFTPKG NAME="P4" VERSION="1,2003">
     <TITLE>P4</TITLE>
     <ABSTRACT>Perl friendly interface to Perforce SCM System. Requires
               P4::Client

@@ -1,4 +1,6 @@
 Revision history for Perl extension P4.
+1.1733 Tue Apr 30 2002
+	- Documentation update and GA release.
 
 0.982 Tue Oct 23 2001
 	- Fixed test.pl which was choking on test 6 due to ParseForms()

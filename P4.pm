@@ -173,7 +173,7 @@ use AutoLoader;
 use strict;
 use vars qw( $VERSION $AUTOLOAD @ISA @EXPORT @EXPORT_OK );
 
-$VERSION = qq( 0.982 );
+$VERSION = qq( 1.1733 );
 
 @ISA = qw( P4::Client );
 
@@ -336,38 +336,39 @@ methods though.
 
 =over 4
 
-=item C<new()>
+=item P4::new()
 
-	Constructor. The only method of this class you call
-	directly.
+Construct a new P4 object. e.g.
 
-=item C<P4::Dropped()>
+  my $p4 = new P4;
+
+=item P4::Dropped()
 
 Returns true if the TCP/IP connection between client and server has 
 been dropped.
 
-=item C<P4::Final()>
+=item P4::Final()
 
 Terminate the connection and clean up. Should be called before exiting
 to cleanly disconnect.
 
-=item C<P4::GetClient()>
+=item P4::GetClient()
 
 Returns the current Perforce client name. This may have previously
 been set by SetClient(), or may be taken from the environment or
 P4CONFIG file if any. If all that fails, it will be your hostname.
 
-=item C<P4::GetCwd()>
+=item P4::GetCwd()
 
 Returns the current working directory as your Perforce client sees
 it.
 
-=item C<P4::GetHost()>
+=item P4::GetHost()
 
 Returns the client hostname. Defaults to your hostname, but can
 be overridden with SetHost()
 
-=item C<P4::GetPassword()>
+=item P4::GetPassword()
 
 Returns your Perforce password - in plain text if that's how it's
 stored and currently on all except Windows platforms, that's the 
@@ -377,89 +378,99 @@ file.
 
 Note that the password is not transmitted in clear text. 
 
-=item C<P4::GetPort()>
+=item P4::GetPort()
 
 Returns the current address for your Perforce server. Taken from 
 a previous call to SetPort(), or from $ENV{P4PORT} or a P4CONFIG
 file.
 
-=item C<P4::Init()>
+=item P4::Init()
 
 Initializes the Perforce client and connects to the server.
 Returns false on failure and true on success.
 
-=item C<P4::Run( cmd, [$arg...] )>
+=item P4::Run( cmd, [$arg...] )
 
-Run a Perforce command returning the results. Check for errors
-using C<P4::ErrorCount()>. Results are returned as follows:
+Run a Perforce command returning the results. Since Perforce commands
+can partially succeed and partially fail, you should check for errors
+using C<P4::ErrorCount()>. 
 
-=over 4
+Results are returned as follows:
 
-=item Returns an array of results in array context.
-
-=item Returns undef in scalar context if result set is empty.
-
-=item Returns a scalar result in scalar context if only one result exists.
-
-=item Returns an array ref in scalar context if more than one result exists.
-
-=back
+    An array of results in array context.
+    undef in scalar context if result set is empty.
+    A scalar result in scalar context if only one result exists.
+    An array ref in scalar context if more than one result exists.
 
 Through the magic of the AutoLoader, you can also treat the 
 Perforce commands as methods, so:
 
-C<$p4-E<gt>Edit( "filename.txt );>
+ $p4->Edit( "filename.txt );
 
 is equivalent to 
 
-C<$p4-E<gt>Run( "edit", "filename.txt" );>
+ $p4->Run( "edit", "filename.txt" );
 
-Note that C<$var = $p4-E<gt>Info()> returns a string containing
-all of the lines of output from Perforce. Whilst 
-C<@var = $p4-E<gt>Info()> returns an array with each line of 
-output in a separate element.
+Note that the format of the scalar or array results you get 
+depends on (a) whether you're using tagged (or form parsing) mode 
+(b) the command you've executed (c) the arguments you supplied and 
+(d) your Perforce server version.
 
-=item C<P4::SetClient( $client )>
+In tagged or form parsing mode, ideally each result element will be
+a hashref, but this is dependent on the command you ran and your server
+version.
+
+In non-tagged mode ( default ), the each result element will be a string. 
+In this case, also note that as the Perforce server sometimes asks the 
+client to write a blank line between result elements, some of these result 
+elements can be empty. 
+
+Mostly you will want to use form parsing (and hence tagged) mode. See
+ParseForms().
+
+Note that the return values of individual Perforce commands are not 
+documented because they may vary between server releases. 
+
+If you want to be correlate the results returned by the P4 inteface with 
+those sent to the command line client try running your command with RPC 
+tracing enabled. For example:
+
+ Tagged mode:		p4 -Ztag -vrpc=1 describe -s 4321
+ Non-Tagged mode:	p4 -vrpc=1 describe -s 4321
+
+Pay attention to the calls to client-FstatInfo(), client-OutputText(), 
+client-OutputData() and client-HandleError(). I<Each call to one of these
+functions results in either a result element, or an error element.>
+
+=item P4::SetClient( $client )
 
 Sets the name of your Perforce client. If you don't call this 
 method, then the clientname will default according to the normal
 Perforce conventions. i.e.
 
-=over 4
+    1. Value from file specified by P4CONFIG
+    2. Value from $ENV{P4CLIENT}
+    3. Hostname
 
-=item 1. Value from file specified by P4CONFIG
-
-=item 2. Value from C<$ENV{P4CLIENT}>
-
-=item 3. Hostname
-
-=back
-
-=item C<P4::SetCwd( $path )>
+=item P4::SetCwd( $path )
 
 Sets the current working directory for the client. This should
 be called after the Init() and before the Run().
 
-=item C<P4::SetPassword( $password )>
+=item P4::SetPassword( $password )
 
 Set the password for the Perforce user, overriding all defaults.
 
-=item C<P4::SetPort( [$host:]$port )>
+=item P4::SetPort( [$host:]$port )
 
 Set the port on which your Perforce server is listening. Defaults
 to:
 
-=over 4
+    1. Value from file specified by P4CONFIG
+    2. Value from $ENV{P4PORT}
+    3. perforce:1666
 
-=item 1. Value from file specified by P4CONFIG
-
-=item 2. Value from C<$ENV{P4PORT}>
-
-=item 3. perforce:1666
-
-=back
-
-=item C<P4::SetProtocol( $protflag, $value )>
+=item P4::SetProtocol( $protflag, $value )
 
 Set protocol options for this session. The most common
 protocol option is the "tag" option which requests tagged
@@ -468,29 +479,18 @@ output.
 
 For example:
 
-=over 4
+ $p4->SetProtocol(tag,''); 
+ $p4->Init();
+ my @f = $p4->Fstat( "filename" );
+ my $c = $f[ 0 ]->{ 'clientFile' };
 
-C<$p4-E<gt>SetProtocol(tag,''); 
-  $p4-E<gt>Init();
-  my @f = $p4-E<gt>Fstat( "filename" );
-  my $c = $f[ 0 ]-E<gt>{ 'clientFile' };
->
-
-=back
-
-=item C<P4::SetUser( $username )>
+=item P4::SetUser( $username )
 
 Set your Perforce username. Defaults to:
 
-=over 4
-
-=item 1. Value from file specified by P4CONFIG
-
-=item 2. Value from C<$ENV{P4USER}>
-
-=item 3. OS username
-
-=back
+    1. Value from file specified by P4CONFIG
+    2. Value from C<$ENV{P4USER}>
+    3. OS username
 
 =back
 
@@ -501,49 +501,44 @@ designed to make common actions easy to code.
 
 =over 4
 
-=item C<P4::Tag()>
+=item P4::Tag()
 
 Equivalent to C<SetProtocol( "tag", "" )>. Responses from commands that
 support tagged output will be in the form of a hash ref rather than plain
 text. Must be called prior to calling C<Init()>.
 
-=item C<P4::ParseForms()>
+=item P4::ParseForms()
 
 Request that forms returned by commands such as C<$p4-E<gt>GetChange()>, or
 C<$p4-E<gt>Client( "-o" )> be parsed and returned as a hash reference for easy
 manipulation. Equivalent to calling C<SetProtocol( "tag", "" )> and 
 C<SetProtocol( "specstring", "" )>. Must be called prior to calling C<Init()>.
 
-=item C<P4::FetchE<lt>cmdE<gt>()>
+=item P4::Fetch<cmd>()
 
 Shorthand for running C<$p4-E<gt>Run( "cmd", "-o" )> and returning 
 the results. eg.
 
-C<$label = $p4-E<gt>FetchLabel( $labelname );>
+    $label	= $p4->FetchLabel( $labelname );
+    $change 	= $p4->FetchChange( $changeno );
+    $clientspec	= $p4->FetchClient( $clientname );
 
-C<$change = $p4-E<gt>FetchChange( $changeno );>
-
-C<$clientspec = $p4-E<gt>FetchClient( $clientname );>
-
-=item C<P4::SaveE<lt>cmdE<gt>()>
+=item P4::Save<cmd>()>
 
 Shorthand for running C<$p4-E<gt>Run( "cmd", "-i");>. e.g
 
-C<$p4-E<gt>SaveLabel( $label );>
-
-C<$p4-E<gt>SaveChange( $changeno );>
-
-C<$p4-E<gt>SaveClient( $clientspec );>
+    $p4->SaveLabel( $label );
+    $p4->SaveChange( $changeno );
+    $p4->SaveClient( $clientspec );
 
 =back
 
 =head1 API Versions
 
 This extension has been built and tested on the Perforce 2001.1 API,
-but should work with any recent version, certainly any release later
-than and including 99.2. Note though that support for tagged output
-and form parsing depends on the server release, so earlier servers
-will not support tagged output on some commands.
+and the 2002.1 API. It is known *not* to build with earlier API
+versions. Support for form parsing and tagged output depends on your
+server release, but generally requires a 2000.1 or later server.
 
 =head1 LICENCE
 

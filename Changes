@@ -1,4 +1,29 @@
 Revision history for Perl extension P4.
 
+0.982 Tue Oct 23 2001
+	- Fixed test.pl which was choking on test 6 due to ParseForms()
+	  not having been called.
+
+	- Fixed return scheme so that an empty list rather than undef
+	  is returned in array context when there are no results.
+
+0.960 Fri Oct 19 2001
+	- Added sample code in example.pl
+
+	- Changed SetXXX/GetXXX shortcuts to FetchXXX and SaveXXX since
+	  GetClient()/SetClient() were already in use - damn!
+
+	- Changed return scheme so that in scalar context Run() returns
+	  an array reference if there is more than one result. Better
+	  than a flat string which you then have to parse.
+
+	- Added PPD file contributed by George Ibbott 
+	  <gibbott@bakerstreettech.com>
+
+0.931 Mon Oct 8 2001
+	- Enhanced interface with some shortcuts for common functions
+	  and made it easy to use the form parsing capabilities of 
+	  P4::Client v 1.931.
+
 0.10  Mon Oct  1 2001
-	Initial version. 
+	- Initial version. 

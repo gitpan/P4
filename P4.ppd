@@ -1,0 +1,12 @@
+<SOFTPKG NAME="P4" VERSION="0,931">
+    <TITLE>P4</TITLE>
+    <ABSTRACT>Perl friendly interface to Perforce SCM System. Requires
+              P4::Client
+    </ABSTRACT>
+    <AUTHOR>Tony Smith, Perforce Software ( tony@perforce.com )</AUTHOR>
+    <IMPLEMENTATION>
+	<OS NAME="MSWin32" />
+	<ARCHITECTURE NAME="MSWin32-x86-multi-thread" />
+	<CODEBASE HREF="P4.tar.gz" />
+    </IMPLEMENTATION>
+</SOFTPKG>

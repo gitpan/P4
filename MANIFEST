@@ -1,5 +1,8 @@
 Changes
+README
 MANIFEST
 Makefile.PL
 P4.pm
+P4.ppd
 test.pl
+example.pl

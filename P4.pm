@@ -123,54 +123,23 @@ sub SetInput
 
 #
 # Return the results of the last command, clearing the results buffer.
-# If the caller wants an array, then they get one. If not, and there's
-# only one result record, then it is returned intact (even if it's 
-# a hash reference containing tagged output). If there's more than
-# one output record, then they are formatted and joined together into
-# a single scalar string and returned to the caller.
+#
+# Returns an array of results if the caller's asked for one
+# Returns undef if result set is empty
+# Returns a scalar result in scalar context if only one result exists.
+# Returns an array ref in scalar context if more than one result exists.
 #
 sub Results
 {
     my $self = shift;
-    if ( wantarray() )
-    {
-	my $results = $self->{ 'Results' };
-	$self->{ 'Results' } = [];
-	return @$results;
-    }
+    my $results = $self->{ 'Results' };
+    $self->{ 'Results' } = [];
 
-    if ( scalar( @{ $self->{ 'Results' } } ) == 1 )
-    {
-	my $results = $self->{ 'Results' };
-	$self->{ 'Results' } = [];
-	return $results->[ 0 ];
-    }
-
-    return join("\n",map( _ResultToString( $_ ), @{ $self->{ 'Results' } } ) );
+    return ( @$results ) if ( wantarray );
+    return undef if ( ! scalar( @$results ) );
+    return $results->[ 0 ] if ( scalar( @$results ) == 1 );
+    return [ @$results ];
 }
-
-# Join results together for user. Required when they want their results in
-# scalar context.  Newline handling's a bit crufty at the mo' for tagged
-# data, but it does the job and most people won't want tagged output in
-# this format anyway.
-sub _ResultToString
-{
-    my $item = shift;
-    my $result = "";
-
-    if ( ref( $item ) )
-    {
-	foreach my $key ( keys %{ $item } )
-	{
-	    $result .= $key . " " . $item->{ $key } . "\n";
-	}
-	chop( $result );
-	return $result;
-    }
-    return $item;
-}
-
-
 
 sub ErrorCount
 {
@@ -204,7 +173,7 @@ use AutoLoader;
 use strict;
 use vars qw( $VERSION $AUTOLOAD @ISA @EXPORT @EXPORT_OK );
 
-$VERSION = qq( 0.931 );
+$VERSION = qq( 0.982 );
 
 @ISA = qw( P4::Client );
 
@@ -299,15 +268,15 @@ sub SubmitSpec( $ )
 # cleaner syntax. If it's not a valid method, you'll find out when
 # Perforce recommends you read the help.
 # 
-# Also implements Get/Set methods for common Perforce commands. e.g.
+# Also implements Fetch/Save methods for common Perforce commands. e.g.
 #
-#	$label = $p4->GetLabel( "labelname" );
-#	$change = $p4->GetChange( [ changeno ] );
+#	$label = $p4->FetchLabel( "labelname" );
+#	$change = $p4->FetchChange( [ changeno ] );
 #
-#	$p4->SetChange( $change );
-#	$p4->SetUser( $p4->GetUser( "username" ) );
+#	$p4->SaveChange( $change );
+#	$p4->SaveUser( $p4->GetUser( "username" ) );
 #
-# Use with care as it's not too clever. SetSubmit is perfectly valid as 
+# Use with care as it's not too clever. SaveSubmit is perfectly valid as 
 # far as this code is concerned, but it doesn't do much!
 #
 sub AUTOLOAD
@@ -317,13 +286,13 @@ sub AUTOLOAD
 	($cmd = $AUTOLOAD ) =~ s/.*:://;
 	$cmd = lc $cmd;
 
-	if ( $cmd =~ /^set(\w+)/  )
+	if ( $cmd =~ /^save(\w+)/i  )
 	{
-	    die( "Set$1 requires an argument!" ) if ( ! scalar( @_ ) );
+	    die( "Save$1 requires an argument!" ) if ( ! scalar( @_ ) );
 	    $self->SetInput( shift );
 	    return $self->Run( $1, "-i", @_ );
 	}
-	elsif ( $cmd =~ /^get(\w+)/ )
+	elsif ( $cmd =~ /^fetch(\w+)/i )
 	{
 	    return $self->Run( $1, "-o", @_ );
 	}
@@ -422,10 +391,22 @@ Returns false on failure and true on success.
 =item C<P4::Run( cmd, [$arg...] )>
 
 Run a Perforce command returning the results. Check for errors
-using C<P4::ErrorCount()>. Results are returned in scalar or
-array context, whichever you're using. Through the magic of 
-the AutoLoader, you can also treat the Perforce commands as
-methods, so 
+using C<P4::ErrorCount()>. Results are returned as follows:
+
+=over 4
+
+=item Returns an array of results in array context.
+
+=item Returns undef in scalar context if result set is empty.
+
+=item Returns a scalar result in scalar context if only one result exists.
+
+=item Returns an array ref in scalar context if more than one result exists.
+
+=back
+
+Through the magic of the AutoLoader, you can also treat the 
+Perforce commands as methods, so:
 
 C<$p4-E<gt>Edit( "filename.txt );>
 
@@ -533,17 +514,36 @@ C<$p4-E<gt>Client( "-o" )> be parsed and returned as a hash reference for easy
 manipulation. Equivalent to calling C<SetProtocol( "tag", "" )> and 
 C<SetProtocol( "specstring", "" )>. Must be called prior to calling C<Init()>.
 
-=item C<P4::GetChange()>
+=item C<P4::FetchE<lt>cmdE<gt>()>
 
-Returns a change specification formatted either as a plain string in a
-scalar variable, or as a hashref if C<P4::ParseForms()> has been 
-called.
+Shorthand for running C<$p4-E<gt>Run( "cmd", "-o" )> and returning 
+the results. eg.
+
+C<$label = $p4-E<gt>FetchLabel( $labelname );>
+
+C<$change = $p4-E<gt>FetchChange( $changeno );>
+
+C<$clientspec = $p4-E<gt>FetchClient( $clientname );>
+
+=item C<P4::SaveE<lt>cmdE<gt>()>
+
+Shorthand for running C<$p4-E<gt>Run( "cmd", "-i");>. e.g
+
+C<$p4-E<gt>SaveLabel( $label );>
+
+C<$p4-E<gt>SaveChange( $changeno );>
+
+C<$p4-E<gt>SaveClient( $clientspec );>
+
+=back
 
 =head1 API Versions
 
 This extension has been built and tested on the Perforce 2001.1 API,
 but should work with any recent version, certainly any release later
-than and including 99.2.
+than and including 99.2. Note though that support for tagged output
+and form parsing depends on the server release, so earlier servers
+will not support tagged output on some commands.
 
 =head1 LICENCE
 

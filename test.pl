@@ -20,9 +20,17 @@ print "ok 1\n";
 
 my $p4 = new P4;
 print( defined( $p4 ) ? "ok 2\n" : "not ok 1\n" );
+
+$p4->ParseForms();
 print( $p4->Init() ? "ok 3\n" : "not ok 2\n" );
 my @info = $p4->Info();
 print( scalar( @info ) >= 10 ? "ok 4\n" : "not ok 4\n" );
-my $info = $p4->Info();
+my $info = join( "\n", $p4->Info() );
 print( $info =~ /^User name/ ? "ok 5\n" : "not ok 5\n" );
+
+my $client = $p4->FetchClient();
+print( ref( $client ) ? "ok 6\n" : "not ok 6\n" );
+
+my $users = $p4->Users();
+print( ref( $users ) ? "ok 7\n" : "not ok 7\n" );
 

@@ -2,16 +2,26 @@ P4 - Perl friendly OO interface to the Perforce SCM System
 ----------------------------------------------------------
 
 This module provides an easy to use and very powerful interface to the
-Perforce SCM system. It's based on the P4::Client module which 
-binds the Perforce C++ API into Perl space, but is still very close
-to the C++ API. P4 is much more perl like.
+Perforce SCM system. It's based on the Perforce C++ API so you'll
+need to download the correct API build for your platform in order to
+be able to build P4.
 
+GCC3 Users
+-----------
+
+Please note that if you're using gcc v3.x you MUST use a version of
+the Perforce API compiled with gcc3. i.e.
+
+  Linux x86 Users:	rXX.Y/bin.linux80x86/p4api.tar 
+  Linux AMD64 Users:	rXX.Y/bin.linux26amd64/pic/p4api.tar
+  etc. etc.
+  
 Requirements
 ------------
 
-P4::Client >= 1.931
 Perforce Client API - get it from ftp://ftp.perforce.com/pub/perforce
-
+C++ compiler 
+Perl (obviously)
 
 Feedback
 --------

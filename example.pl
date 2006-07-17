@@ -6,7 +6,7 @@ use P4;
 
 # Initialisation
 my $p4 = new P4;
-$p4->Init() or die( "Failed to connect to Perforce" );
+$p4->Connect() or die( "Failed to connect to Perforce" );
 
 # Running "p4 info" and getting the results as a single string
 my $info;
@@ -33,12 +33,23 @@ my @info;
 # Parsing forms. Requires protocol options set prior to initialisation
 $p4 = new P4;	# discard old object
 $p4->ParseForms();
-$p4->Init() or die( "Failed to connect to Perforce" );
+$p4->Connect() or die( "Failed to connect to Perforce" );
 
 my $spec = $p4->FetchClient();
 foreach my $key ( sort keys %$spec )
 {
     next if ( $key eq "specdef" );
-    print( "$key\t => " . $spec->{ $key } . "\n" );
+    if( $key eq "View" )
+    {
+	print( "View:\n" );
+	foreach my $v ( @{$spec->{ $key }} )
+	{
+	    print( "\t$v\n" );
+	}
+    }
+    else
+    {
+	print( "$key\t => " . $spec->{ $key } . "\n" );
+    }
 }
 

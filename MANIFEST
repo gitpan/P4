@@ -1,8 +1,23 @@
 Changes
-README
-MANIFEST
+example.pl
+hints/mswin32.pl
+hints/freebsd.pl
+hints/cygwin.pl
+hints/solaris.pl
+hints/linux.pl
+lib/p4perldebug.h
+lib/perlclientapi.cc
+lib/perlclientuser.cc
+lib/perlclientuser.h
+lib/p4result.h
+lib/Makefile.PL
+lib/p4result.cc
+lib/perlclientapi.h
 Makefile.PL
+MANIFEST
 P4.pm
 P4.ppd
-test.pl
-example.pl
+P4.xs
+README
+test.pl.skel
+META.yml                                 Module meta-data (added by MakeMaker)

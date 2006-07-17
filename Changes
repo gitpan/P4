@@ -1,4 +1,196 @@
 Revision history for Perl extension P4.
+
+3.5259  Thu Jan 12 2006
+
+	- Update P4Perl for 2005.2 API changes. The 2005.2 API supplies forms
+	  ready-parsed to the client when used in tagged mode. This is fine for
+	  P4Perl, except that we were not caching the specdef if no parsing was
+	  required and that meant that although forms could be converted to 
+	  hashes, the reverse direction was broken. 
+	  
+	  This change makes sure that we cache the specdef whenever it's 
+	  available.
+
+3.5073  Wed Aug 03 2005
+
+	- Yet another P4::SetProg fix. Turns out the last change fixed
+	  everything except the build script and it all worked...
+	  unless you used the 2005.1 API which has a different format
+	  for the Version file. 
+	
+	  P4::SetProg is a no-op when P4Perl is built with an older API
+	  so not identifying the API build properly breaks it thoroughly.
+	
+	  This change adapts P4Perl's setup script to support both
+	  pre-2005.1 and 2005.1 formats, and gives the user the
+	  chance to enter the API version manually if it can't be
+	  automatically determined.
+	
+	- Installers also included in this change
+
+3.5067  Wed Jul 27 2005
+
+	- Bug fix: P4::SetProg() interface method was missing so SetProg
+	  wasn't working too well! 
+
+3.5038  Mon Jul 04 2005
+
+	- Bug fix: Fix memory leaks in P4Perl reported by Craig Galley. Perl's
+	  reference count garbage collection is not much fun to work with,
+	  but hopefully this change plugs P4Perl's leaks. There's still a
+	  leak that remains, but whether it's in P4Perl's code or just in 
+	  Perl I don't know. A loop like this:
+	
+	    while( 1 ) {
+		my $p4 = new P4;
+	    }
+	
+	  will leak like a sieve but I'm pretty sure P4Perl is cleaning up
+	  as it should. While it's very difficult to be certain with Perl's
+	  memory mode, creating one P4 object and using it multiple times 
+	  now appears to be pretty steady.
+	  
+	- Also fixed use of uninitialized debug variable which could produce
+	  debug output you hadn't asked for.
+
+3.5035  Wed Jun 29 2005
+
+	- Bug fix: call ClientApi::SetProg() before every command instead of
+	  just once as this value is not retained by the Perforce API.
+
+3.4987	Fri Jun 03 2005
+
+	- Bug fix for tagged mode output from 'p4 diff2'. Diff2 is one of
+	  the few (only?) commands to use variables of the form 'var' and
+	  'var2' rather than 'var1' and 'var2'. Normally, if there's no
+	  numeric suffix to a variable, P4Perl can assume it's looking at
+	  the only instance of that variable in the output. In the case of
+	  'p4 diff2', that's not true.
+	
+	  This change enables P4Perl to adapt to this change of circumstances
+	  and convert a previously scalar member of the hash result into an
+	  array member.
+
+3.4873	Thu Mar 31 2005
+
+	- Bug fix: fix typos in test harness that were causing the tests
+	  to fail.
+
+3.4864	Mon Mar 21 2005
+
+	- Bug fix: Introduce workaround for obscure 2000.1/2000.2 protocol
+	  bug that I really thought we'd seen the last of. 
+	
+	- Along the way, a total revamp of the debugging output - required
+	  to diagnose the problem.
+
+3.4856	Wed Mar 15 2005
+
+	- Rework P4::Errors() and P4::Warnings() so that they return a list
+	  rather than an array. Perl seems to like this more and it's easy
+	  to assign the list to an array should you wish to do so.
+	
+	  Note that this may cause some backwards-compatibility issues.
+
+3.4831	Wed Feb 09 2005
+
+	- Change implementation of P4 class from being a blessed reference
+	  to an integer (pointer) to a blessed reference to a hash. The 
+	  pointer is now stashed in a member of the hash. This makes it easier
+	  for those that want to to subclass the P4 class and bolt on their own 
+	  functionality. No functional change.
+
+3.4804	Thu Jan 20 2005
+
+	- Add support for P4::SetMaxResults() and P4::SetMaxScanRows() which
+	  specify the desired limits for an instance of the P4 class. Note
+	  that the limits remain in force until disabled by setting them to
+	  zero.
+
+3.4754	Tue Jan 11 2005
+
+	- Add support for passing multiple items of input to Perforce commands
+	  that need them. The prime example is 'p4 password' which prompts the
+	  user three times for password input (old password, new password and
+	  new password again). 
+	
+	- Also add a P4::Password( $old, $new ) method to make it nice and 
+	  easy to use.
+
+3.4698 Wed Dec 22 2004
+
+	- Bug fix. Correct client initialization so that it no longer causes
+	  problems if the connection to the server fails for some reason.
+	
+	- Also corrected the number of tests in the test harness.
+
+3.4676 Mon Dec 06 2004
+
+	- Enable P4Perl to work against a server in unicode mode. This change
+	  adds two new methods to the P4 class: SetCharset() and GetCharset()
+	  which have the expected behaviour.
+	
+	  Thanks to  Raymond Danks <raymond.danks@amd.com>.
+
+	- Also cleaned up the test harness a little
+
+3.4667 Thu Dec 02 2004
+
+	- New ParseSpec() and FormatSpec() methods allow you to convert
+	  specs between hash and string representations easily. Shortcut
+	  methods Parse* and Format* are also defined. (i.e. FormatClient()
+	  and ParseLabel() etc.)
+
+	- New methods IsTagged() and IsParseForms() tell you if your client
+	  is in tagged/form parsing mode respectively. If you care.
+
+	- P4::Tag() is deprecated in favour of P4::Tagged(). P4::Tag() exists
+	  for backwards compatibility
+
+3.4608 Mon Oct 25 2004
+
+	- Bug fix: The SetInput() method was omitted in the big rewrite
+	  so quite a lot was broken in builds 3.4579 and later. This
+	  change fixes that omission, and adds support for 'p4 login'
+	  too (that was how I discovered that SetInput() was missing).
+
+3.4585 Mon Oct 18 2004
+
+	- Make P4Perl v3.x backwardly compatible with older versions of
+	  the Perforce API.
+
+3.4582 Mon Oct 18 2004
+
+	- Port previous change to NT. As usual, it's never simple. We
+	  can't use fprintf( stderr, ... ) because of Perl's stupid
+	  macro's. Hence a lot of fprintf()'s got changed to printf()'s.
+
+	- A couple of other minor changes and bugfixes.
+
+3.4579 Fri Oct 15 2004
+
+	- Total rewrite. There's no need for P4::Client anymore, P4.pm is
+	  now completely standalone. Of course that means that to build
+	  P4.pm, you need to go through the same procedure you used to use
+	  for P4-Client. C'est-la-vie. Internally, things are much cleaner
+	  and now P4Perl shares the same architecture as P4Ruby so porting
+	  new features and bug fixes between them should be much easier.
+
+	- Note that in the course of this change, the clunky DoPerlDiffs() 
+	  and DoP4Diffs() methods have been pruned. If you're using 
+	  DoPerlDiffs(), and you want to continue to do so, you'll need to
+	  either ) continue using a 1.x build.
+
+	- Also note that errors and warnings now go to separate arrays
+	  by default (so you can take note of errors, but ignore warnings
+	  in your scripts). Users wanting the old behaviour must now
+	  call P4::MergeErrors( 1 ). 
+
+	- So why no version '2'? Simple really, P4::Client was already at
+	  version 2, and I didn't want to confuse things by having people
+	  think that P4::Client might be more recent/or on a par with P4.
+	  Hence the jump straight to v3.
+	
 1.4320 Wed Jun 09 2004
 
 	- Bug fix. Fix the test script so that it handles both tagged and

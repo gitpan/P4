@@ -1,4 +1,4 @@
-# Copyright (c) 1997-2004, Perforce Software, Inc.  All rights reserved.
+# Copyright (c) 1997-2006, Perforce Software, Inc.  All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
@@ -21,219 +21,78 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
-#*******************************************************************************
-# P4::Perl	- UI object for Perforce interface. Handles the Perforce API's
-#		  callbacks and stores the results for returning using 
-#		  normal perl conventions.
-#*******************************************************************************
-
-package P4::Perl;
-use P4::UI;
+package P4;
 use strict;
-use vars qw( @ISA );
 
-@ISA = qw( P4::UI );
+require Exporter;
+require DynaLoader;
 
-sub new
-{
-    my $class = shift;
-    my $self = new P4::UI;
-    $self->{ 'Results' } = [];
-    $self->{ 'Errors' } = [];
-    $self->{ 'Input' } = undef;
-    bless( $self, $class );
-    return $self;
-}
+use AutoLoader;
+use vars qw( $VERSION @ISA @EXPORT @EXPORT_OK $AUTOLOAD );
 
-#*******************************************************************************
-# Override methods called from the Perforce API
-#*******************************************************************************
-sub OutputInfo
-{
-    my ( $self, $level, $data ) = @_;
-    push( @{ $self->{ 'Results' } }, $data );
-}
+@ISA = qw(Exporter DynaLoader);
+@EXPORT_OK = qw( );
+@EXPORT = qw();
+$VERSION = qq( 3.5313 );
 
-sub OutputStat
-{
-    my ( $self, $href ) = @_;
-    push( @{ $self->{ 'Results' } }, $href );
-}
-
-# Not required. Use "p4 command -o" and "p4 command -i" to avoid the 
-# editing step.
-sub Edit
-{
-    warn( "Edit() method not supported by P4::Perl class" );
-    return;
-}
-
-sub ErrorPause
-{
-    my ( $self, $message ) = @_;
-    push ( @{ $self->{ 'Errors' } }, $message );
-}
-
-sub InputData
-{
-    my $self = shift;
-    if ( defined( $self->{ 'Input' } ) )
-    {
-	my $input = $self->{ 'Input' };
-	$self->{ 'Input' } = undef; 	# Clear it out to prevent re-use
-	return $input;
-    }
-    warn( "P4::InputData() called without any data to supply" );
-    return undef;
-}
-
-sub OutputError
-{
-    my ( $self, $error ) = @_;
-    push ( @{ $self->{ 'Errors' } }, $error );
-}
-
-sub OutputText
-{
-    my ( $self, $text ) = @_;
-    push( @{ $self->{ 'Results' } }, $text );
-}
+bootstrap P4 $VERSION;
 
 #
-# Binary data just stored in the results buffer in the same way as
-# text - we do that because (a) you asked for it and (b) clients with
-# LineEnd's other than "local" will use OutputBinary() instead of
-# OutputText() when writing file content (e.g. "p4 print")
-#
-sub OutputBinary
-{
-    my ( $self, $data, $len ) = @_;
-    push( @{ $self->{ 'Results' } }, $data );
-}
-
-sub Prompt
-{
-    my ( $self, $prompt ) = @_;
-    warn( "Prompt() method not supported by P4::Perl class" );
-    return undef;
-}
-
-#*******************************************************************************
-#* Sending input to Perforce
-#*******************************************************************************
-sub SetInput
-{
-    my $self = shift;
-    $self->{ 'Input' } = shift;
-}
-
-
-#*******************************************************************************
-#* Getting the results of commands
-#*******************************************************************************
-
-#
-# Return the results of the last command, clearing the results buffer.
+# Execute a command. The return value depends on the context of the call.
 #
 # Returns an array of results if the caller's asked for one
 # Returns undef if result set is empty
 # Returns a scalar result in scalar context if only one result exists.
 # Returns an array ref in scalar context if more than one result exists.
 #
-sub Results
-{
-    my $self = shift;
-    my $results = $self->{ 'Results' };
-    $self->{ 'Results' } = [];
-
-    return ( @$results ) if ( wantarray );
-    return undef if ( ! scalar( @$results ) );
-    return $results->[ 0 ] if ( scalar( @$results ) == 1 );
-    return [ @$results ];
-}
-
-sub ErrorCount
-{
-    my $self = shift;
-    return scalar( @{ $self->{ 'Errors' } } );
-}
-
-sub Errors
-{
-    my $self = shift;
-    my $errs = $self->{ 'Errors' };
-    $self->{ 'Errors' } = [];
-    return $errs;
-}
-
-# Flush results and errors buffers
-sub Clear
-{
-    my $self = shift;
-    $self->{ 'Results' } = [];
-    $self->{ 'Errors'} = [];
-}
-
-
-#*******************************************************************************
-#* Main interface definition.
-#*******************************************************************************
-package P4;
-use P4::Client;
-use AutoLoader;
-use strict;
-use vars qw( $VERSION $AUTOLOAD @ISA @EXPORT @EXPORT_OK );
-
-$VERSION = qq( 1.4320 );
-
-@ISA = qw( P4::Client );
-
-@EXPORT_OK = qw( );
-@EXPORT = qw();
-
-sub new
-{
-	my $class = shift;
-	my $self = new P4::Client;
-	$self->{ 'ui' } = new P4::Perl;
-	bless( $self, $class );
-	return $self;
-}
-
-#
-# Prior to running a "p4 submit/change/user/client/etc -i", use this method
-# to provide the form you want to send to Perforce.
-#
-sub SetInput( $ )
-{
-    my $self = shift;
-    my $data = shift;
-
-    $self->{ 'ui' }->SetInput( $data );
-}
-
-
 sub Run
 {
     my $self = shift;
-    my $cmd = shift;
-
-    $self->{ 'ui' }->Clear();
-    P4::Client::Run( $self, $self->{ 'ui' }, $cmd, @_ );
-    return $self->{ 'ui' }->Results();
+    my $results = $self->_Run( @_ );
+    return @$results 		if( wantarray );
+    return undef 		if( scalar( @$results ) == 0 );
+    return $$results[ 0 ] 	if( scalar( @$results ) == 1 );
+    return $results;
 }
 
-sub Errors
+# Change the current working directory. Returns undef on failure.
+sub SetCwd
 {
     my $self = shift;
-    return $self->{ 'ui' }->Errors();
+    my $cwd = shift;
+
+    # First we chdir to the dir if it exists. If successful, then we
+    # update the PWD environment variable (if defined) and call the
+    # API equivalent function, now named _SetCwd()
+    return undef unless chdir( $cwd );
+    $ENV{ "PWD" } = $cwd if ( defined( $ENV{ "PWD" } ) );
+    $self->_SetCwd( $cwd );
+    return $cwd;
 }
 
-sub ErrorCount
+
+#
+# Run 'p4 login' using the password supplied by the user
+#
+sub Login()
 {
     my $self = shift;
-    return $self->{ 'ui' }->ErrorCount();
+    $self->SetInput( $self->GetPassword() );
+    return $self->Run( "login" );
+}
+
+#
+# Run 'p4 passwd' to change the password
+#
+sub Password( $$ )
+{
+    my $self 	= shift;
+    my $oldpass = shift;
+    my $newpass = shift;
+
+    my $args = [ $oldpass, $newpass, $newpass ];
+    $self->SetInput( $args );
+    return $self->Run( "password" );
 }
 
 
@@ -241,25 +100,6 @@ sub ErrorCount
 #* Useful shortcut methods to make common actions easier to code. Nothing
 #* here that can't be done using the already defined methods.
 #*******************************************************************************
-
-# Tag		- Request tagged output. Call before calling Init().
-#
-sub Tag()
-{
-    my $self = shift;
-    $self->SetProtocol( "tag", "" );
-}
-
-
-# ParseForms	- Request that all forms be parsed into hashes for easy use.
-#		  Call prior to calling Init().
-#
-sub ParseForms()
-{
-    my $self = shift;
-    $self->SetProtocol( "tag", "" );
-    $self->SetProtocol( "specstring", "" );
-}
 
 
 # SubmitSpec	- "p4 submit -i"
@@ -275,6 +115,17 @@ sub SubmitSpec( $ )
     $self->SetInput( shift );
     $self->Submit( "-i" );
 }
+
+#*******************************************************************************
+#* Compatibility-ville.
+#*******************************************************************************
+
+sub Tag()
+{
+    my $self = shift;
+    $self->Tagged();
+}
+
 
 # Makes the Perforce commands usable as methods on the object for
 # cleaner syntax. If it's not a valid method, you'll find out when
@@ -300,7 +151,7 @@ sub AUTOLOAD
 
 	if ( $cmd =~ /^save(\w+)/i  )
 	{
-	    die( "Save$1 requires an argument!" ) if ( ! scalar( @_ ) );
+	    die( "save$1 requires an argument!" ) if ( ! scalar( @_ ) );
 	    $self->SetInput( shift );
 	    return $self->Run( $1, "-i", @_ );
 	}
@@ -308,8 +159,34 @@ sub AUTOLOAD
 	{
 	    return $self->Run( $1, "-o", @_ );
 	}
+	elsif ( $cmd =~ /^parse(\w+)/i )
+	{
+	    die( "parse$1 requires an argument!" ) if ( ! scalar( @_ ) );
+	    return $self->ParseSpec( $1, $_[0] );
+	}
+	elsif ( $cmd =~ /^format(\w+)/i )
+	{
+	    die( "format$1 requires an argument!" ) if ( ! scalar( @_ ) );
+	    return $self->FormatSpec( $1, $_[0] );
+	}
 	return $self->Run( $cmd, @_ );
 }
+
+#*******************************************************************************
+# Compatibility-ville.
+#*******************************************************************************
+sub Final
+{
+    my $self = shift;
+    $self->Disconnect();
+}
+
+sub Init
+{
+    my $self = shift;
+    $self->Connect();
+}
+
 1;
 __END__
 
@@ -325,24 +202,21 @@ P4 - OO interface to the Perforce SCM System.
   $p4->SetClient( $clientname );
   $p4->SetPort ( $p4port );
   $p4->SetPassword( $p4password );
-  $p4->Init() or die( "Failed to connect to Perforce Server" );
+  $p4->Connect() or die( "Failed to connect to Perforce Server" );
   
   my $info = $p4->Run( "info" );
   $p4->Edit( "file.txt" ) or die( "Failed to edit file.txt" );
-  $p4->Final();
+  $p4->Disconnect();
 
 
 =head1 DESCRIPTION
 
-This module provides an OO interface to the Perforce SCM system which
-is more intuitive to Perl users than the P4::Client/P4::UI modules
-but a little less capable as it represents but one way of using
-P4::Client and P4::UI. 
+This module provides an OO interface to the Perforce SCM system that
+is designed to be intuitive to Perl users. Data is returned in Perl
+arrays and hashes and input can also be supplied in these formats.
 
-Methods are divided into the base methods and shortcuts. The shortcuts
-are intended to make scripts using this module easier by providing
-easy interfaces to common actions. They're just wrappers around the base
-methods though.
+Each P4 object represents a connection to the Perforce Server, and 
+multiple commands may be executed (serially) over a single connection.
 
 =head1 BASE METHODS
 
@@ -353,6 +227,23 @@ methods though.
 Construct a new P4 object. e.g.
 
   my $p4 = new P4;
+
+=item P4::Connect()
+
+Initializes the Perforce client and connects to the server.
+Returns false on failure and true on success.
+
+=item P4::DebugLevel( [ level ] )
+
+Gets and optionally sets the debug level. Without an argument, it 
+just returns the current debug level. With an argument, it first updates
+the debug level and then returns the new value.
+
+For example:
+
+ $client->DebugLevel( 1 );
+ $client->DebugLevel( 0 );
+ print( "Debug level = ", $client->DebugLevel(), "\n" );
 
 =item P4::Dropped()
 
@@ -366,14 +257,29 @@ command
 
 =item P4::Errors()
 
-Returns an array containing the error messages received during 
-execution of the last command.
+Returns a list of the error messages received during execution of 
+the last command.
 
 
-=item P4::Final()
+=item P4::FormatSpec( type, string )
 
-Terminate the connection and clean up. Should be called before exiting
-to cleanly disconnect.
+Converts a Perforce form of the specified type (client/label etc.)
+held in the supplied hash into its string representation. Note that 
+shortcut methods are available that obviate the need to supply the 
+type argument. The following two examples are equivalent:
+
+    my $client = $p4->FormatSpec( "client", $hash );
+    my $client = $p4->FormatClient( $hash );
+
+
+=item P4::Disconnect()
+
+Terminate the connection and clean up. Should be called before exiting.
+
+=item P4::GetClient()
+
+Return the name of the current charset in use. Applicable only when
+used with Perforce servers running in unicode mode.
 
 =item P4::GetClient()
 
@@ -393,13 +299,9 @@ be overridden with SetHost()
 
 =item P4::GetPassword()
 
-Returns your Perforce password - in plain text if that's how it's
-stored and currently on all except Windows platforms, that's the 
-way it's done.  Taken from a previous call to SetPassword() or 
-extracted from the environment ( $ENV{P4PASSWD} ), or a P4CONFIG 
-file.
-
-Note that the password is not transmitted in clear text. 
+Returns your Perforce password.  Taken from a previous call to 
+SetPassword() or extracted from the environment ( $ENV{P4PASSWD} ), 
+or a P4CONFIG file.
 
 =item P4::GetPort()
 
@@ -407,10 +309,56 @@ Returns the current address for your Perforce server. Taken from
 a previous call to SetPort(), or from $ENV{P4PORT} or a P4CONFIG
 file.
 
-=item P4::Init()
+=item P4::IsParseForms()
 
-Initializes the Perforce client and connects to the server.
-Returns false on failure and true on success.
+Returns true if ParseForms mode is enabled on this client.
+
+=item P4::IsTagged()
+
+Returns true if Tagged mode is enabled on this client.
+
+a previous call to SetPort(), or from $ENV{P4PORT} or a P4CONFIG
+file.
+
+=item P4::MergeErrors( [0|1] )
+
+For backwards compatibility. In previous versions of P4, errors and
+warnings were mixed in the same 'Errors' array. This made it tricky
+for users to ignore warnings, but still look out for errors. This
+release of P4 stores them in two separate arrays. You can get the
+list of errors, but calling P4::Errors(), and the list of warnings by
+calling P4::Warnings(). If you want to revert to the old behaviour, 
+you can call this method to revert to the old behaviour and all
+warnings will go into the error array. i.e.
+
+  $p4->MergeErrors( 1 );
+  $p4->Sync();
+  $p4->MergeErrors( 0 );
+
+
+=item P4::ParseForms()
+
+Request that forms returned by commands such as C<$p4-E<gt>GetChange()>, or
+C<$p4-E<gt>Client( "-o" )> be parsed and returned as a hash reference for easy
+manipulation. Must be called prior to calling C<Connect()>.
+
+=item P4::ParseSpec( type, string )
+
+Converts a Perforce form of the specified type (client/label etc.)
+held in the supplied string into a hash and returns a reference to 
+that hash. Note that shortcut methods are available to avoid the
+need to supply the type argument. The following two examples are
+equivalent:
+
+    my $hash = $p4->ParseSpec( "client", $clientspec );
+    my $hash = $p4->ParseClient( $clientspec );
+
+
+=item P4::Password( $oldpass, $newpass )
+
+Run a C<p4 password> command to change the user's password from
+$oldpass to $newpass. Not to be confused with P4::SetPassword.
+
 
 =item P4::Run( cmd, [$arg...] )
 
@@ -454,7 +402,7 @@ ParseForms().
 Note that the return values of individual Perforce commands are not 
 documented because they may vary between server releases. 
 
-If you want to be correlate the results returned by the P4 inteface with 
+If you want to be correlate the results returned by the P4 interface with 
 those sent to the command line client try running your command with RPC 
 tracing enabled. For example:
 
@@ -464,6 +412,36 @@ tracing enabled. For example:
 Pay attention to the calls to client-FstatInfo(), client-OutputText(), 
 client-OutputData() and client-HandleError(). I<Each call to one of these
 functions results in either a result element, or an error element.>
+
+=item P4::SetApiLevel( integer )
+
+Specify the API compatibility level to use for this script. 
+This is useful when you want your script to continue to work on
+newer server versions, even if the new server adds tagged output
+to previously unsupported commands.
+
+The additional tagged output support can change the server's
+output, and confound your scripts. Setting the API level to a
+specific value allows you to lock the output to an older
+format, thus increasing the compatibility of your script.
+
+Must be called before calling P4::Connect(). e.g.
+
+  $p4->SetApiLevel( 57 ); # Lock to 2005.1 format
+  $p4->Connect() or die( "Failed to connect to Perforce" );
+  etc.
+
+=item P4::SetCharset( $charset )
+
+Specify the character set to use for local files when used with a
+Perforce server running in unicode mode. Do not use UNLESS your
+Perforce server is in unicode mode. Must be called before calling
+P4::Connect(). e.g.
+
+  $p4->SetCharset( "winansi" );
+  $p4->SetCharset( "iso8859-1" );
+  $p4->SetCharset( "utf8" );
+  etc.
 
 =item P4::SetClient( $client )
 
@@ -478,11 +456,44 @@ Perforce conventions. i.e.
 =item P4::SetCwd( $path )
 
 Sets the current working directory for the client. This should
-be called after the Init() and before the Run().
+be called after the Connect() and before the Run().
+
+=item P4::SetHost( $hostname )
+
+Sets the name of the client host - overriding the actual hostname.
+This is equivalent to 'p4 -H <hostname>', and really only useful when
+you want to run commands as if you were on another machine. If you
+don't know when or why you might want to do that, then don't do it.
+
+=item P4::SetInput( arg )
+
+Save the supplied argument as input to be supplied to a subsequent 
+command.  The input may be: a hashref, a scalar string or an array 
+of hashrefs or scalar strings. Note that if you pass an array the
+array will be shifted once each time the Perforce command being
+executed asks for user input.
+
+=item P4::SetMaxResults( value )
+
+Limit the number of results for subsequent commands to the value
+specified. Perforce will abort the command if continuing would
+produce more than this number of results. Note that once set,
+this limit remains in force. You can remove the restriction by
+setting it to a value of 0.
+
+=item P4::SetMaxScanRows( value )
+
+Limit the number of records Perforce will scan when processing
+subsequent commands to the value specified. Perforce will abort 
+the command once this number of records has been scanned. Note 
+that once set, this limit remains in force. You can remove the 
+restriction by setting it to a value of 0.
 
 =item P4::SetPassword( $password )
 
-Set the password for the Perforce user, overriding all defaults.
+Specify the password to use when authenticating this user against
+the Perforce Server - overrides all defaults. Not to be 
+confused with P4::Password().
 
 =item P4::SetPort( [$host:]$port )
 
@@ -493,17 +504,20 @@ to:
     2. Value from $ENV{P4PORT}
     3. perforce:1666
 
+=item P4::SetProg( $program_name )
+
+Set the name of your script. This value is displayed in the server log
+on 2004.2 or later servers.
+
 =item P4::SetProtocol( $protflag, $value )
 
-Set protocol options for this session. The most common
-protocol option is the "tag" option which requests tagged
-output format for commands which would otherwise get formatted
-output. 
+Set protocol options for this session. Deprecated. Use C<Tagged()> or
+C<ParseForms()> instead.
 
 For example:
 
  $p4->SetProtocol(tag,''); 
- $p4->Init();
+ $p4->Connect();
  my @f = $p4->Fstat( "filename" );
  my $c = $f[ 0 ]->{ 'clientFile' };
 
@@ -515,6 +529,28 @@ Set your Perforce username. Defaults to:
     2. Value from C<$ENV{P4USER}>
     3. OS username
 
+=item P4::Tag()
+
+Deprecated in favour of C<Tagged> (same functionality).
+
+=item P4::Tagged()
+
+Responses from commands that support tagged output will be returned
+in the form of a hashref rather than plain text. Must be called 
+prior to calling C<Connect()>.
+
+=item P4::WarningCount()
+
+Returns the number of warnings issued by the last command.
+
+ $p4->WarningCount();
+
+=item P4::Warnings()
+
+Returns a list of warnings from the last command
+
+ $p4->Warnings();
+
 =back
 
 =head1 SHORTCUT METHODS
@@ -523,19 +559,6 @@ The following methods are simply wrappers around the base methods
 designed to make common actions easy to code.
 
 =over 4
-
-=item P4::Tag()
-
-Equivalent to C<SetProtocol( "tag", "" )>. Responses from commands that
-support tagged output will be in the form of a hash ref rather than plain
-text. Must be called prior to calling C<Init()>.
-
-=item P4::ParseForms()
-
-Request that forms returned by commands such as C<$p4-E<gt>GetChange()>, or
-C<$p4-E<gt>Client( "-o" )> be parsed and returned as a hash reference for easy
-manipulation. Equivalent to calling C<SetProtocol( "tag", "" )> and 
-C<SetProtocol( "specstring", "" )>. Must be called prior to calling C<Init()>.
 
 =item P4::Fetch<cmd>()
 
@@ -546,6 +569,18 @@ the results. eg.
     $change 	= $p4->FetchChange( $changeno );
     $clientspec	= $p4->FetchClient( $clientname );
 
+=item P4::Format<spec type>( hash )>
+
+Shorthand for: 
+
+    $p4->FormatSpec( <spec type>, hash );
+    
+=item P4::Parse<spec type>( buffer )>
+
+Shorthand for: 
+
+    $p4->ParseSpec( <spec type>, buffer );
+    
 =item P4::Save<cmd>()>
 
 Shorthand for: 
@@ -558,12 +593,6 @@ e.g.
     $p4->SaveLabel( $label );
     $p4->SaveChange( $changeno );
     $p4->SaveClient( $clientspec );
-
-=item P4::SetInput()
-
-Save the supplied argument, which should be a hashref or
-a scalar string, as input to be supplied to a subsequent
-"p4 XXXX -i".
 
 =item P4::SubmitSpec()>
 
@@ -578,12 +607,25 @@ For example:
 
 =back
 
-=head1 API Versions
+=head1 COMPATIBILITY WITH PREVIOUS VERSIONS
 
-This extension has been built and tested on the Perforce 2001.1 API,
-and the 2002.1 API. It is known *not* to build with earlier API
-versions. Support for form parsing and tagged output depends on your
-server release, but generally requires a 2000.1 or later server.
+This version of P4 is largely backwards compatible with previous
+versions with the following exceptions:
+
+1. Errors and warnings are now saved in separate arrays by default. The
+previous behaviour can be reinstated for those with compatibility 
+requirements by calling
+
+ $p4->MergeErrors( 1 );
+
+Splitting errors and warnings into separate arrays makes it easier to
+ignore warnings and only have to deal with real errors.
+
+2. The DoPerlDiffs() method in previous versions is no longer defined. 
+It was a legacy from an earlier release and was superceded in more recent 
+versions.  Users who still depend on that functionality should use a 1.x 
+build of P4.  Similarly, the corresponding DoP4Diffs() method is also removed. 
+It was likely not used and is not necessary anyway.
 
 =head1 LICENCE
 
@@ -615,10 +657,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 =head1 AUTHOR
 
-Tony Smith, Perforce Software ( tony@perforce.com )
+Tony Smith, Perforce Software ( tony@perforce.com or tony@smee.org )
 
 =head1 SEE ALSO
 
-perl(1), P4::Client(3), P4::UI(3), Perforce API documentation.
+perl(1), Perforce API documentation.
 
 =cut

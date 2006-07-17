@@ -1,0 +1,137 @@
+# Copyright (c) 1997-2004, Perforce Software, Inc.  All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are met:
+# 
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+# 
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL PERFORCE SOFTWARE, INC. BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# Before `make install' is performed this script should be runnable with
+# `make test'. After `make install' it should work as `perl test.pl'
+
+######################### We start with some black magic to print on failure.
+
+# Change 1..1 below to 1..last_test_to_print .
+# (It may become useful if the test is moved to ./t subdirectory.)
+
+BEGIN { $| = 1; print "1..7\n"; }
+END {print "not ok 1\n" unless $loaded;}
+use P4;
+use strict;
+use vars qw( $loaded $p4port );
+
+$loaded = 1;
+$p4port = "__P4PORT__";
+print "ok 1\n";
+
+######################### End of black magic.
+
+# Insert your test code below (better if it prints "ok 13"
+# (correspondingly "not ok 13") depending on the success of chunk 13
+# of the test code):
+
+#
+# Hash showing which tests passed and which failed.
+#
+our %TESTMAP;
+
+sub Depends
+{
+    foreach my $t (@_)
+    {
+	return 0 unless defined $TESTMAP{ $t };
+	return 0 unless $TESTMAP{ $t };
+    }
+    return 1;
+}
+
+#
+# Function to run a test. The test itself is passed as a closure
+# that returns a boolean value. A list of pre-requisite tests is the last
+# parameter. 
+#
+sub RunTest( $$&@ )
+{
+    my $p4 	= shift;
+    my $testno  = shift;
+    my $testf	= shift;
+
+    if( @_ )
+    {
+	unless( Depends( @_ ) )
+	{
+	    print( "skipped $testno\n" );
+	    return;
+	}
+    }
+
+    my $rc = &$testf();
+    if( $rc )
+    {
+	print( "ok $testno\n" );
+	$TESTMAP{ $testno } = 1;
+	return;
+    }
+
+    print( "not ok $testno\n" );
+    $TESTMAP{ $testno } = 0;
+
+    foreach my $w ( $p4->Warnings() )
+    {
+	print( STDERR "\tWARNING: $w\n" );
+    }
+    foreach my $e ( $p4->Errors() )
+    {
+	print( STDERR "\tERROR: $e\n" );
+    }
+}
+
+my $testno = 2;
+my $p4 = new P4;
+
+RunTest( $p4, $testno++, sub { defined( $p4 ); } );
+
+$p4->DebugLevel( 0 );
+$p4->SetClient( "someclientname" );
+$p4->ParseForms();
+$p4->SetPort( $p4port );
+
+#
+# Test3: Can we connect
+#
+RunTest( $p4, $testno++, sub{ $p4->Connect(); } );
+
+#
+# Test4: Is the client what we expect
+#
+RunTest( $p4, $testno++, sub{ $p4->GetClient() eq "someclientname"; } );
+
+#
+# Test5: Can we get a list of users?
+#
+my @users = $p4->Users();	# Using Autoloading syntax in array context
+RunTest( $p4, $testno++, sub{ scalar( @users ) } );
+
+#
+# Test6 and Test7: Check scalar context stuff is working
+#
+my $users = $p4->Users();
+RunTest( $p4, $testno++, sub{ ref( $users ) }, $testno - 2 );
+RunTest( $p4, $testno++, sub{ scalar( @$users ) }, $testno - 2 ); 
+
+$p4->Disconnect();
